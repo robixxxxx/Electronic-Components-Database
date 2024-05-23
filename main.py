@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 from database import Database
 from mainwindow import MainWindow
 import qtmodern.styles

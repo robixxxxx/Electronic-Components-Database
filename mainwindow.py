@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import QMainWindow, QAction, QMessageBox
-from PyQt5.QtSql import QSqlTableModel, QSqlQuery, QSqlRecord
-from PyQt5.QtCore import Qt, QModelIndex
-from PyQt5.QtGui import QIcon
+from PySide6.QtWidgets import QMainWindow, QMessageBox
+from PySide6.QtSql import QSqlTableModel, QSqlQuery, QSqlRecord
+from PySide6.QtCore import Qt, QModelIndex
+from PySide6.QtGui import QIcon, QAction
 import sys
 import webbrowser
 
@@ -67,6 +67,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionReduceTheStateBy.triggered.connect(lambda: self.increaseReduceForm(self.getIndexList(), increase=False))
         self.actionResetState.triggered.connect(lambda: self.resetState(self.getIndexList()))
         self.actionDeleteComponent.triggered.connect(lambda: self.deleteComponentsDialog(self.getIndexList()))
+        self.actionEditComponent.triggered.connect(lambda: self.editComponent(self.getIndex()))
         
         self.actionLookForDocumentationAtFarnellCom.triggered.connect(lambda: self.site(self.getIndexList(),"https://pl.farnell.com/search?st="))
         self.actionLookForDocumentationAtAllDatasheetCom.triggered.connect(lambda: self.site(self.getIndexList(), "https://www.alldatasheet.com/view.jsp?Searchword="))
@@ -86,8 +87,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tableModel.select()
             
     def getIndexList(self)->list[QModelIndex]:
-        indexList = self.tableView.selectionModel().selection().indexes()
-        return indexList
+        return self.tableView.selectionModel().selection().indexes()
+    
+    def getIndex(self)->QModelIndex:
+        return self.tableView.selectionModel().selection().indexes()[0]
     
     def deleteComponentsDialog(self, indexList:list)->None:
         dialog = DeleteDialog()
@@ -112,6 +115,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             form.label.setText("Reduce value by:")
             form.buttonBox.accepted.connect(lambda: self.reduceState(indexList, form.getValue()))
+        form.buttonBox.accepted.connect(lambda: form.close())
         
     def increaseState(self, indexList:list, by:int = 1)->None:
         for index in indexList:
@@ -134,8 +138,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableModel.submitAll()
         self.tableModel.select()
         
-    def editComponent(self):
-        pass
+    def editComponent(self, index:int):
+        form = NewComponentForm(index)
+        form.model.select()
+        form.addAndExitButton.clicked.connect(lambda: self.updateComponent(index, form.updateAndExit()))
+        form.addAndContinueButton.hide()
+        form.show()
+    
+    def updateComponent(self, index:int, record:QSqlRecord):
+        if self.tableModel.updateRowInTable(index, record):
+            self.tableModel.select()
     
     def updateDatabase(self)->None:
         self.tableModel.setFilter(None)
@@ -153,13 +165,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def importFromCSV(self):
         pass
     #TO DO
-    def importFromXLM(self):
+    def importFromXML(self):
         pass
     #TO DO
     def exportToCSV(self):
         pass
     #TO DO
-    def exportToXLM(self):
+    def exportToXML(self):
         pass
     #TO DO
     def restoreFromDb(self):

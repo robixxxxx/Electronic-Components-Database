@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget
 from stateChangeForm_ui import Ui_increaseReduce
 
 class StateChange(QWidget, Ui_increaseReduce):

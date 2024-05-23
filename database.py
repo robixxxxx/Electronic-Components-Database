@@ -1,5 +1,5 @@
-from PyQt5.QtSql import *
-from PyQt5.QtWidgets import QMessageBox
+from PySide6.QtSql import *
+from PySide6.QtWidgets import QMessageBox
 
 class Database(QSqlDatabase):
     def __init__(self, dbName: str, dbType: str, parent=None)->None:
