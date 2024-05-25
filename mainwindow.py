@@ -6,7 +6,7 @@ import sys
 import webbrowser
 
 from mainwindow_ui import Ui_MainWindow
-from addComponentForm import NewComponentForm
+from componentForm import ComponentForm
 from stateChangeForm import StateChange
 from deleteDialog import DeleteDialog
 
@@ -14,13 +14,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     def __init__(self):
         super(MainWindow, self).__init__()
+        self.tableModel = QSqlTableModel()
+        self.filters = {"category":"*",
+                       "type": "*",
+                       "component":"*",
+                       "value":"*"
+                       }
         self.setupUi(self)
         self.setWindowIcon(QIcon("icons/icon.png"))
         self.addActionsToWidgets()
         self.setTableModel()
     
     def setTableModel(self)->None:
-        self.tableModel = QSqlTableModel()
+        
         self.tableModel.setTable("components")
         self.tableModel.setEditStrategy(QSqlTableModel.OnRowChange)
         self.tableModel.setHeaderData(0, Qt.Horizontal, "ID")
@@ -53,12 +59,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableView.addAction(self.actionEditComponent)
         self.tableView.addAction(self.actionDeleteComponent)
         self.tableView.addAction(self.actionUpdateDatabase)
+        self.categoryFilter.addAction(self.actionCategory_Filter)
+        
         
         self.tableView.addAction(self.actionLookForDocumentationAtAllDatasheetCom)
         self.tableView.addAction(self.actionLookForDocumentationAtTMEeu)
         self.tableView.addAction(self.actionLookForDocumentationAtMouserCom)
         self.tableView.addAction(self.actionLookForDocumentationAtDigiKeyCom)
         self.tableView.addAction(self.actionLookForDocumentationAtFarnellCom)
+        
         
         self.actionIncreaseTheState.triggered.connect(lambda: self.increaseState(self.getIndexList()))
         self.actionReduceTheState.triggered.connect(lambda: self.reduceState(self.getIndexList()))
@@ -75,19 +84,40 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionLookForDocumentationAtMouserCom.triggered.connect(lambda: self.site(self.getIndexList(),"https://eu.mouser.com/c/?q="))
         self.actionLookForDocumentationAtTMEeu.triggered.connect(lambda: self.site(self.getIndexList(),"https://www.tme.eu/pl/katalog/?queryPhrase="))
         
+    def tableFilter(self, column:str, filter:str):
+        pass
+    
     def newComponent(self)->None:
-        form = NewComponentForm()
-        form.model.select()
+        form = ComponentForm()
         form.addAndExitButton.clicked.connect(lambda: self.insertRecord(form.saveAndExit()))
         form.addAndContinueButton.clicked.connect(lambda: self.insertRecord(form.save()))
         form.show()
-        
+
+    def editComponent(self, index:int):
+        form = ComponentForm(index=index, model=self.tableModel)
+        form.model.select()
+        form.addAndExitButton.clicked.connect(lambda: self.updateComponent(index, form.updateAndExit()))
+        form.addAndContinueButton.hide()
+        form.show()
+
+    def updateComponent(self, index:QModelIndex, record:QSqlRecord):
+        if self.tableModel.updateRowInTable(index.row(), record):
+            self.tableModel.select()
+
     def insertRecord(self, record:QSqlRecord):
         if self.tableModel.insertRecord(-1, record):
             self.tableModel.select()
-            
+
+
+    #TO DO: Return only rows list    
     def getIndexList(self)->list[QModelIndex]:
-        return self.tableView.selectionModel().selection().indexes()
+        index_list = self.tableView.selectionModel().selection().indexes()
+        ret_index_list = []
+        for index in index_list:
+            if(index.column()==0):
+                ret_index_list.append(index)
+                
+        return ret_index_list
     
     def getIndex(self)->QModelIndex:
         return self.tableView.selectionModel().selection().indexes()[0]
@@ -97,7 +127,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog.setText(len(indexList))
         dialog.buttonBox.accepted.connect(lambda: self.deleteComponents(indexList))
         dialog.buttonBox.accepted.connect(lambda: dialog.close())
-        # dialog.buttonBox.accepted.connect(lambda: self.close())
         dialog.buttonBox.rejected.connect(lambda: dialog.close())
         dialog.show()
     
@@ -120,14 +149,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def increaseState(self, indexList:list, by:int = 1)->None:
         for index in indexList:
             qtyIndex = self.tableModel.index(index.row(), 7)
-            self.tableModel.setData(qtyIndex, int(self.tableModel.data(qtyIndex))+by)
+            self.tableModel.setData(qtyIndex, float(self.tableModel.data(qtyIndex))+by if self.tableModel.data(qtyIndex) != '' else by)
         self.tableModel.submitAll()
         self.tableModel.select()
     
     def reduceState(self, indexList:list, by:int = 1)->None:
         for index in indexList:
             qtyIndex = self.tableModel.index(index.row(), 7)
-            self.tableModel.setData(qtyIndex, int(self.tableModel.data(qtyIndex))-by)
+            self.tableModel.setData(qtyIndex, float(self.tableModel.data(qtyIndex))-by if self.tableModel.data(qtyIndex) != '' else -by)
         self.tableModel.submitAll()
         self.tableModel.select()
     
@@ -138,17 +167,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tableModel.submitAll()
         self.tableModel.select()
         
-    def editComponent(self, index:int):
-        form = NewComponentForm(index)
-        form.model.select()
-        form.addAndExitButton.clicked.connect(lambda: self.updateComponent(index, form.updateAndExit()))
-        form.addAndContinueButton.hide()
-        form.show()
-    
-    def updateComponent(self, index:int, record:QSqlRecord):
-        if self.tableModel.updateRowInTable(index, record):
-            self.tableModel.select()
-    
     def updateDatabase(self)->None:
         self.tableModel.setFilter(None)
         self.tableModel.select()
@@ -185,4 +203,3 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     def about(self):
         self.openSite("https://github.com/robixxxxx/Electronic-Components-Database/blob/main/README.md")
-    
